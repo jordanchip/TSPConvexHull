@@ -31,53 +31,32 @@ namespace TSP
         {
             return bssf;
         }
-        /**
-        public ConvexHullSolver(System.Drawing.Graphics g, System.Windows.Forms.PictureBox pictureBoxView)
-        {
-            this.g = g;
-            this.pictureBoxView = pictureBoxView;
-        }
-
-        public void Refresh()
-        {
-            // Use this especially for debugging and whenever you want to see what you have drawn so far
-            pictureBoxView.Refresh();
-        }
-
-        public void Pause(int milliseconds)
-        {
-            // Use this especially for debugging and to animate your algorithm slowly
-            pictureBoxView.Refresh();
-            System.Threading.Thread.Sleep(milliseconds);
-        }
-        **/
-
+        
         public Solution Solve(List<City> pointList)
         {
             //Sorting normally takes (n log(n)) time
             pointList.Sort((x, y) => x.X.CompareTo(y.X));
+
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
             LinkedCList hull = convexSort(pointList, 0);
+            Console.WriteLine(timer.Elapsed.ToString());
+
             remainingCities = getRemainingCitiesBad(hull, pointList.Count - 1);
+
             connectInnerToOuter(hull, remainingCities);
-            ArrayList cityHull = new ArrayList();
-            LinkedCList.CPoint cur = hull.root;
-            do
-            {
-                cityHull.Add(cities[cur.cityInt]);
-                cur = cur.next;
-            } while (!cur.Equals(hull.root));
+
+            ArrayList cityHull = LinkedListToArrayList(hull);
 
             return new Solution(cityHull, 0);
         }
 
-        
-
-/*
-* This part of our algorithm divides the problem in half,
-* only stopping once we've hit a list of 2 or 3 points.
-* The base cases also take constant time
-* O(1)
-*/
+        /*
+        * This part of our algorithm divides the problem in half,
+        * only stopping once we've hit a list of 2 or 3 points.
+        * The base cases also take constant time
+        * O(1)
+        */
         private LinkedCList convexSort(List<City> points, int beginIndex)
         {
             int size = points.Count;
@@ -98,10 +77,10 @@ namespace TSP
                 }
             }
             //Divide problem in half
-            return merge(convexSort(points.GetRange(0, (size - 1) / 2 + 1), beginIndex), convexSort(points.GetRange((size - 1) / 2 + 1, size / 2),beginIndex+((size-1)/2+1)));
-            //beginIndex+(size+1)/2-1)
-            //endIndex
+            return merge(convexSort(points.GetRange(0, (size - 1) / 2 + 1), beginIndex), 
+                        convexSort(points.GetRange((size - 1) / 2 + 1, size / 2),beginIndex+((size-1)/2+1)));
         }
+
         /*
         * This is the work that is done to join together each piece of recursion
         * Most work is constant, but we do have while loops checking for upper
@@ -263,6 +242,7 @@ namespace TSP
             }
             return list;
         }
+
         /*
         *   Draw points does constant work for each node in the convex hull.
         *   Time: O(n)
@@ -281,60 +261,87 @@ namespace TSP
         }
         **/
 
-        private string[] returnSolution(double cost, String time, int solutions)
-        {
-            string[] returnString = new string[3];
-            returnString[0] = cost.ToString();
-            returnString[1] = time;
-            returnString[2] = solutions.ToString();
-            return returnString;
-        }
+        /// <summary>
+        ///  Links the inner cities to outer convex hull by finding the closest city to
+        ///  the hull, and linking it.  This is continued until all the cities are connected.
+        /// </summary>
+        /// <param name="hull">Initial convex hull of the cities</param>
+        /// <param name="remainingCities">The cities that still need to be connected to the hull</param>
         private LinkedCList connectInnerToOuter(LinkedCList hull, HashSet<int> remainingCities)
         {
             while (remainingCities.Count > 0)
             {
-                Dictionary<int, double> cityCost = new Dictionary<int, double>();
-                Dictionary<int, LinkedCList.CPoint> cityToNode = new Dictionary<int, LinkedCList.CPoint>();
-                foreach (int cityI in remainingCities)
-                {
-                    City city = cities[cityI];
-                    LinkedCList.CPoint cur = hull.root;
-                    double minDist = double.PositiveInfinity;
-                    LinkedCList.CPoint minNode = null;
-                    do
-                    {
-                        double ij = cities[cur.cityInt].costToGetTo(city);
-                        double jk = city.costToGetTo(cities[cur.next.cityInt]);
-                        double ik = cities[cur.cityInt].costToGetTo(cities[cur.next.cityInt]);
-                        if ((ij + jk - ik) < minDist)
-                        {
-                            minDist = ij + jk - ik;
-                            minNode = cur;
-                        }
-                        cur = cur.next;
-                    } while (!cur.Equals(hull.root));
-                    cityCost[cityI] = minDist;
-                    cityToNode[cityI] = minNode;
-                }
-                double minVal = double.PositiveInfinity;
-                int minI = -1;
-                foreach (KeyValuePair<int, double> entry in cityCost)
-                {
-                    if (entry.Value < minVal)
-                    {
-                        minVal = entry.Value;
-                        minI = entry.Key;
-                    }
-                }
-                LinkedCList.CPoint mid = new LinkedCList.CPoint(cities[minI].X, cities[minI].Y, minI);
-                mid.prev = cityToNode[minI];
-                mid.next = cityToNode[minI].next;
-                cityToNode[minI].next.prev = mid;
-                cityToNode[minI].next = mid;
-                remainingCities.Remove(minI);
+                connectMinCityToHull(hull);
             }
             return hull;
         }
+        
+        private void connectMinCityToHull(LinkedCList hull)
+        {
+            int trueMinI = -1;
+            LinkedCList.CPoint trueMinNode = null;
+
+            findMinDistCityFromHull(ref trueMinI, ref trueMinNode, ref hull);
+
+            LinkedCList.CPoint mid = new LinkedCList.CPoint(cities[trueMinI].X, cities[trueMinI].Y, trueMinI);
+            linkCityToHull(ref mid, ref trueMinNode, trueMinI);
+        }
+
+        private void findMinDistCityFromHull(ref int trueMinI, ref LinkedCList.CPoint trueMinNode, ref LinkedCList hull)
+        {
+            double trueMinVal = double.PositiveInfinity;
+            foreach (int cityI in remainingCities)
+            {
+                City city = cities[cityI];
+
+                LinkedCList.CPoint cur = hull.root;
+                double minDist = double.PositiveInfinity;
+                double minDistDivide = double.PositiveInfinity;
+                LinkedCList.CPoint minNode = null;
+
+                findMinDistFromHullFromCity(city, ref minDist, ref minDistDivide, ref minNode, hull);
+
+                if (minDist < trueMinVal)
+                {
+                    trueMinVal = minDist;
+                    trueMinI = cityI;
+                    trueMinNode = minNode;
+                }
+            }
+        }
+
+        private void findMinDistFromHullFromCity(City city, ref double minDist, ref double minDistDivide,
+                                                ref LinkedCList.CPoint minNode, LinkedCList hull)
+        {
+            LinkedCList.CPoint cur = hull.root;
+            do
+            {
+                double ij = cities[cur.cityInt].costToGetTo(city);
+                double jk = city.costToGetTo(cities[cur.next.cityInt]);
+                double ik = cities[cur.cityInt].costToGetTo(cities[cur.next.cityInt]);
+                if (ik == double.PositiveInfinity)
+                {
+                    continue;
+                }
+                if ((ij + jk - ik) < minDist)
+                {
+                    minDist = ij + jk - ik;
+                    minDistDivide = ij + jk / ik;
+                    minNode = cur;
+                }
+                cur = cur.next;
+            } while (!cur.Equals(hull.root));
+        }
+
+        private void linkCityToHull(ref LinkedCList.CPoint mid, ref LinkedCList.CPoint minNode, int minI)
+        {
+            mid.prev = minNode;
+            mid.next = minNode.next;
+            minNode.next.prev = mid;
+            minNode.next = mid;
+            remainingCities.Remove(minI);
+        }
+
         private HashSet<int> getRemainingCitiesBad(LinkedCList hull, int totalCities)
         {
             HashSet<int> remainingCities = new HashSet<int>();
@@ -357,6 +364,27 @@ namespace TSP
                 }
             }
             return remainingCities;
+        }
+        
+        private string[] returnSolution(double cost, String time, int solutions)
+        {
+            string[] returnString = new string[3];
+            returnString[0] = cost.ToString();
+            returnString[1] = time;
+            returnString[2] = solutions.ToString();
+            return returnString;
+        }
+
+        private ArrayList LinkedListToArrayList(LinkedCList hull)
+        {
+            ArrayList cityHull = new ArrayList();
+            LinkedCList.CPoint cur = hull.root;
+            do
+            {
+                cityHull.Add(cities[cur.cityInt]);
+                cur = cur.next;
+            } while (!cur.Equals(hull.root));
+            return cityHull;
         }
     }
 
