@@ -12,7 +12,7 @@ namespace TSP
     {
         Solution bssf;
         List<City> cities = new List<City>();
-        HashSet<int> remainingCities;
+        HashSet<int> remainingCities = new HashSet<int>();
         public MySolver(City[] cities)
         {
             foreach (City city in cities)
@@ -42,7 +42,7 @@ namespace TSP
             LinkedCList hull = convexSort(pointList, 0);
             Console.WriteLine(timer.Elapsed.ToString());
 
-            remainingCities = getRemainingCitiesBad(hull, pointList.Count - 1);
+            //remainingCities = getRemainingCitiesBad(hull, pointList.Count - 1);
 
             connectInnerToOuter(hull, remainingCities);
 
@@ -101,11 +101,19 @@ namespace TSP
                 //while upper tanget is not set
                 while (!isUpperLeftSet(upperLeftTan, upperRightTan))
                 {
+                    if (upperLeftTan != list1.right)
+                    {
+                        remainingCities.Add(upperLeftTan.cityInt);
+                    }
                     upperLeftTan = upperLeftTan.prev;
                 }
                 //while right tanget is not set
                 while (!isUpperRightSet(upperLeftTan, upperRightTan))
                 {
+                    if (upperRightTan != list2.root)
+                    {
+                        remainingCities.Add(upperRightTan.cityInt);
+                    }
                     upperRightTan = upperRightTan.next;
                 }
             }
@@ -115,10 +123,18 @@ namespace TSP
             {
                 while (!isLowerLeftSet(lowerLeftTan, lowerRightTan))
                 {
+                    if (lowerLeftTan != list1.right || upperLeftTan != list1.right)
+                    {
+                        remainingCities.Add(lowerLeftTan.cityInt);
+                    }
                     lowerLeftTan = lowerLeftTan.next;
                 }
                 while (!isLowerRightSet(lowerLeftTan, lowerRightTan))
                 {
+                    if (lowerRightTan != list2.root || upperRightTan != list2.root)
+                    {
+                        remainingCities.Add(lowerRightTan.cityInt);
+                    }
                     lowerRightTan = lowerRightTan.prev;
                 }
             }
@@ -340,30 +356,6 @@ namespace TSP
             minNode.next.prev = mid;
             minNode.next = mid;
             remainingCities.Remove(minI);
-        }
-
-        private HashSet<int> getRemainingCitiesBad(LinkedCList hull, int totalCities)
-        {
-            HashSet<int> remainingCities = new HashSet<int>();
-            for (int i = 0; i < totalCities; i++)
-            {
-                bool seen = false;
-                LinkedCList.CPoint cur = hull.root;
-                do
-                {
-                    if (cur.cityInt == i)
-                    {
-                        seen = true;
-                        break;
-                    }
-                    cur = cur.next;
-                } while (!cur.Equals(hull.root));
-                if (!seen)
-                {
-                    remainingCities.Add(i);
-                }
-            }
-            return remainingCities;
         }
         
         private string[] returnSolution(double cost, String time, int solutions)
