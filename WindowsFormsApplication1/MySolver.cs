@@ -13,6 +13,7 @@ namespace TSP
         Solution bssf;
         List<City> cities = new List<City>();
         HashSet<int> remainingCities = new HashSet<int>();
+        double[,] adjancencyMatrix;
         public MySolver(City[] cities)
         {
             foreach (City city in cities)
@@ -36,7 +37,7 @@ namespace TSP
         {
             //Sorting normally takes (n log(n)) time
             pointList.Sort((x, y) => x.X.CompareTo(y.X));
-
+            adjancencyMatrix = createInitialAdjancencyMatrix();
             Stopwatch timer = new Stopwatch();
             timer.Start();
             LinkedCList hull = convexSort(pointList, 0);
@@ -315,7 +316,7 @@ namespace TSP
                 double minDistDivide = double.PositiveInfinity;
                 LinkedCList.CPoint minNode = null;
 
-                findMinDistFromHullFromCity(city, ref minDist, ref minDistDivide, ref minNode, hull);
+                findMinDistFromHullFromCity(city, cityI, ref minDist, ref minDistDivide, ref minNode, hull);
 
                 if (minDist < trueMinVal)
                 {
@@ -326,15 +327,16 @@ namespace TSP
             }
         }
 
-        private void findMinDistFromHullFromCity(City city, ref double minDist, ref double minDistDivide,
+        private void findMinDistFromHullFromCity(City city, int cityI, ref double minDist, ref double minDistDivide,
                                                 ref LinkedCList.CPoint minNode, LinkedCList hull)
         {
             LinkedCList.CPoint cur = hull.root;
             do
             {
-                double ij = cities[cur.cityInt].costToGetTo(city);
-                double jk = city.costToGetTo(cities[cur.next.cityInt]);
-                double ik = cities[cur.cityInt].costToGetTo(cities[cur.next.cityInt]);
+                double ij = adjancencyMatrix[cur.cityInt, cityI];
+                double jk = adjancencyMatrix[cityI, cur.next.cityInt];
+                double ik = adjancencyMatrix[cur.cityInt, cur.next.cityInt];
+                
                 if (ik == double.PositiveInfinity)
                 {
                     continue;
@@ -377,6 +379,26 @@ namespace TSP
                 cur = cur.next;
             } while (!cur.Equals(hull.root));
             return cityHull;
+        }
+
+        private double[,] createInitialAdjancencyMatrix()
+        {
+            double[,] mat = new double[cities.Count, cities.Count];
+            for (int i = 0; i < cities.Count; i++)
+            {
+                for (int j = 0; j < cities.Count; j++)
+                {
+                    if (i == j)
+                    {
+                        mat[i, j] = double.PositiveInfinity;
+                    }
+                    else
+                    {
+                        mat[i, j] = cities[i].costToGetTo(cities[j]);
+                    }
+                }
+            }
+            return mat;
         }
     }
 
