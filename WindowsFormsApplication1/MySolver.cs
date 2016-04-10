@@ -14,6 +14,7 @@ namespace TSP
         List<City> cities = new List<City>();
         HashSet<int> remainingCities = new HashSet<int>();
         double[,] adjancencyMatrix;
+
         public MySolver(City[] cities)
         {
             foreach (City city in cities)
@@ -21,6 +22,7 @@ namespace TSP
                 this.cities.Add(city);
             }
         }
+
         public string[] solve(int timeout)
         {
             Stopwatch timer = new Stopwatch();
@@ -28,6 +30,7 @@ namespace TSP
             bssf = Solve(cities);
             return returnSolution(bssf.cost, timer.Elapsed.ToString(), 0);
         }
+
         public Solution getBSSF()
         {
             return bssf;
@@ -42,8 +45,6 @@ namespace TSP
             timer.Start();
             LinkedCList hull = convexSort(pointList, 0);
             Console.WriteLine(timer.Elapsed.ToString());
-
-            //remainingCities = getRemainingCitiesBad(hull, pointList.Count - 1);
 
             connectInnerToOuter(hull, remainingCities);
 
